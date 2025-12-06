@@ -1,10 +1,10 @@
 export const CONFIG = {
-  target_cost_per_message: 0.003,
-  max_cost_per_message: 0.005,
-  alert_threshold: 0.008,
-  monthly_budget: 50.00,
-  expected_daily_messages: 200,
-  large_request_threshold: 15000,
+  target_cost_per_message: 0.004,
+  max_cost_per_message: 0.008,
+  alert_threshold: 0.0010,
+  monthly_budget: 60.00,
+  expected_daily_messages: 400,
+  large_request_threshold: 18000,
   optimal_calls_per_message: 2,
 };
 
