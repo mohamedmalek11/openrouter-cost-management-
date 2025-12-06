@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
         <MetricCard 
           title="Cost per Message" 
           value={formatCurrency(stats.cost_per_message)}
-          subValue="Target: $0.0030"
+          subValue="Target: $0.0040"
           trend="down"
           trendValue={`-${impact.cost_reduction_pct.toFixed(1)}% vs Benchmark`}
           icon={<DollarSign className="w-6 h-6" />}
