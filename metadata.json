@@ -1,0 +1,5 @@
+{
+  "name": "RetroBot Analytics",
+  "description": "Financial analytics and cost projection dashboard for chatbot usage data.",
+  "requestFramePermissions": []
+}
