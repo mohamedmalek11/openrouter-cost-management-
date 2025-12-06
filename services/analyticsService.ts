@@ -1,3 +1,4 @@
+
 import Papa from 'papaparse';
 import { 
   CsvRow, 
@@ -7,9 +8,10 @@ import {
   ModelStats,
   HourlyStats,
   Projections,
-  Alert
+  Alert,
+  AppConfig
 } from '../types';
-import { CONFIG, BENCHMARKS } from '../constants';
+import { BENCHMARKS } from '../constants';
 
 const parseNumber = (val: string | number): number => {
   if (typeof val === 'number') return val;
@@ -17,7 +19,7 @@ const parseNumber = (val: string | number): number => {
   return isNaN(parsed) ? 0 : parsed;
 };
 
-export const processCsvData = (file: File): Promise<AnalyticsResult> => {
+export const processCsvData = (file: File, config: AppConfig): Promise<AnalyticsResult> => {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
       header: true,
@@ -28,7 +30,7 @@ export const processCsvData = (file: File): Promise<AnalyticsResult> => {
           if (!rawRows.length) throw new Error("File is empty");
           
           const processedData = rawRows.map(processRow);
-          const analytics = analyzeData(processedData);
+          const analytics = analyzeData(processedData, config);
           resolve(analytics);
         } catch (e) {
           reject(e);
@@ -58,7 +60,7 @@ const processRow = (row: CsvRow): ProcessedRow => {
   };
 };
 
-const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
+const analyzeData = (data: ProcessedRow[], config: AppConfig): AnalyticsResult => {
   // 1. Summary Stats
   const total_requests = data.length;
   const total_cost = data.reduce((sum, r) => sum + r.cost_total, 0);
@@ -69,6 +71,9 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
   // If devstral count is 0, we assume 1 message = 1 request as fallback or 0
   const estimated_messages = devstral_count > 0 ? devstral_count : total_requests; 
   
+  // Calculate chats
+  const estimated_chats = estimated_messages / config.average_messages_per_chat;
+  
   const stats: SummaryStats = {
     total_requests,
     total_cost,
@@ -78,7 +83,9 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
     avg_generation_time: data.reduce((sum, r) => sum + r.generation_time_ms, 0) / total_requests,
     unique_dates: new Set(data.map(r => r.date)).size,
     estimated_messages,
+    estimated_chats,
     cost_per_message: estimated_messages > 0 ? total_cost / estimated_messages : 0,
+    cost_per_chat: estimated_chats > 0 ? total_cost / estimated_chats : 0,
     calls_per_message: estimated_messages > 0 ? total_requests / estimated_messages : 0,
   };
 
@@ -122,7 +129,7 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
   })).sort((a, b) => a.hour - b.hour);
 
   // 4. Large Requests
-  const largeReqs = data.filter(r => r.tokens_prompt > CONFIG.large_request_threshold);
+  const largeReqs = data.filter(r => r.tokens_prompt > config.large_request_threshold);
   const large_requests = {
     count: largeReqs.length,
     percentage: (largeReqs.length / total_requests) * 100,
@@ -146,33 +153,42 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
       requests: stats.calls_per_message * daily_messages * 30
     },
     budget: {
-      monthly_budget: CONFIG.monthly_budget,
+      monthly_budget: config.monthly_budget,
       projected_monthly: projected_monthly_cost,
-      remaining: CONFIG.monthly_budget - projected_monthly_cost,
-      utilization: (projected_monthly_cost / CONFIG.monthly_budget) * 100
+      remaining: config.monthly_budget - projected_monthly_cost,
+      utilization: (projected_monthly_cost / config.monthly_budget) * 100
     }
   };
 
   // 6. Impact & Benchmarks
   const impact = {
     cost_reduction_pct: ((BENCHMARKS.before_optimization.cost_per_message - stats.cost_per_message) / BENCHMARKS.before_optimization.cost_per_message) * 100,
-    monthly_savings: (BENCHMARKS.before_optimization.cost_per_message - stats.cost_per_message) * CONFIG.expected_daily_messages * 30
+    monthly_savings: (BENCHMARKS.before_optimization.cost_per_message - stats.cost_per_message) * config.expected_daily_messages * 30
   };
 
   // 7. Alerts
   const alerts: Alert[] = [];
   
-  if (stats.cost_per_message > CONFIG.alert_threshold) {
+  if (stats.cost_per_message > config.alert_threshold) {
     alerts.push({
       level: 'CRITICAL',
       message: `High Cost per Message ($${stats.cost_per_message.toFixed(4)})`,
       action: 'Check large requests & reduce iterations'
     });
-  } else if (stats.cost_per_message > CONFIG.max_cost_per_message) {
+  } else if (stats.cost_per_message > config.max_cost_per_message) {
     alerts.push({
       level: 'WARNING',
       message: `Cost exceeds acceptable limit ($${stats.cost_per_message.toFixed(4)})`,
       action: 'Monitor performance & optimize tool descriptions'
+    });
+  }
+
+  // Cost per chat alert (using average messages factor)
+  if (stats.cost_per_chat > config.target_cost_per_chat) {
+    alerts.push({
+       level: 'WARNING',
+       message: `Cost per Chat ($${stats.cost_per_chat.toFixed(4)}) exceeds target ($${config.target_cost_per_chat.toFixed(4)})`,
+       action: 'Review conversation length and tool usage'
     });
   }
 
@@ -190,7 +206,7 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
     });
   }
 
-  if (stats.calls_per_message > CONFIG.optimal_calls_per_message + 1) {
+  if (stats.calls_per_message > config.optimal_calls_per_message + 1) {
     alerts.push({
       level: 'WARNING',
       message: `High Calls per Message (${stats.calls_per_message.toFixed(2)})`,
@@ -205,6 +221,7 @@ const analyzeData = (data: ProcessedRow[]): AnalyticsResult => {
     projections,
     alerts,
     large_requests,
-    impact
+    impact,
+    config
   };
 };

@@ -1,3 +1,16 @@
+
+export interface AppConfig {
+  target_cost_per_message: number;
+  max_cost_per_message: number;
+  alert_threshold: number;
+  monthly_budget: number;
+  expected_daily_messages: number;
+  large_request_threshold: number;
+  optimal_calls_per_message: number;
+  average_messages_per_chat: number;
+  target_cost_per_chat: number;
+}
+
 export interface CsvRow {
   created_at: string;
   model_permaslug: string;
@@ -33,7 +46,9 @@ export interface SummaryStats {
   avg_generation_time: number;
   unique_dates: number;
   estimated_messages: number;
+  estimated_chats: number;
   cost_per_message: number;
+  cost_per_chat: number;
   calls_per_message: number;
 }
 
@@ -84,4 +99,5 @@ export interface AnalyticsResult {
     cost_reduction_pct: number;
     monthly_savings: number;
   };
+  config: AppConfig;
 }

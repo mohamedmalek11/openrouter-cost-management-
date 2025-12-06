@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   BarChart, 
@@ -8,7 +9,8 @@ import {
   TrendingUp, 
   AlertTriangle,
   PieChart as PieIcon,
-  CheckCircle2
+  CheckCircle2,
+  MessagesSquare
 } from 'lucide-react';
 import { AnalyticsResult } from '../types';
 import MetricCard from './MetricCard';
@@ -20,7 +22,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
-  const { stats, projections, impact, alerts, large_requests } = data;
+  const { stats, projections, impact, alerts, large_requests, config } = data;
 
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 4 }).format(val);
@@ -39,12 +41,17 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
            <h2 className="text-2xl font-bold text-slate-800">Analytics Overview</h2>
            <p className="text-slate-500">Analysis for {stats.total_requests} requests across {stats.unique_dates} days</p>
         </div>
-        <button 
-          onClick={onReset}
-          className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-        >
-          Upload New File
-        </button>
+        <div className="flex gap-3">
+          <div className="hidden lg:block px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+             Budget: <span className="font-semibold text-slate-800">${config.monthly_budget}</span>
+          </div>
+          <button 
+            onClick={onReset}
+            className="px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Upload New File
+          </button>
+        </div>
       </div>
 
       {/* Alerts Section */}
@@ -74,11 +81,20 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
         <MetricCard 
           title="Cost per Message" 
           value={formatCurrency(stats.cost_per_message)}
-          subValue="Target: $0.0040"
-          trend="down"
-          trendValue={`-${impact.cost_reduction_pct.toFixed(1)}% vs Benchmark`}
+          subValue={`Target: ${formatCurrency(config.target_cost_per_message)}`}
+          trend={stats.cost_per_message > config.target_cost_per_message ? 'down' : 'up'}
+          trendValue={stats.cost_per_message > config.target_cost_per_message ? 'Above Target' : 'On Target'}
           icon={<DollarSign className="w-6 h-6" />}
-          color="green"
+          color={stats.cost_per_message > config.target_cost_per_message ? 'amber' : 'green'}
+        />
+        <MetricCard 
+          title="Cost per Chat" 
+          value={formatCurrency(stats.cost_per_chat)}
+          subValue={`~${config.average_messages_per_chat} msgs/chat`}
+          trend={stats.cost_per_chat > config.target_cost_per_chat ? 'down' : 'up'}
+          trendValue={`Target: ${formatCurrency(config.target_cost_per_chat)}`}
+          icon={<MessagesSquare className="w-6 h-6" />}
+          color={stats.cost_per_chat > config.target_cost_per_chat ? 'purple' : 'blue'}
         />
         <MetricCard 
           title="Total Cost" 
@@ -86,13 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
           subValue={`Est. Monthly: ${formatCurrency(projections.monthly.cost)}`}
           icon={<TrendingUp className="w-6 h-6" />}
           color="blue"
-        />
-        <MetricCard 
-          title="Efficiency" 
-          value={stats.calls_per_message.toFixed(2)}
-          subValue="Calls per message"
-          icon={<Activity className="w-6 h-6" />}
-          color="purple"
         />
         <MetricCard 
           title="Budget Health" 
@@ -138,7 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
           </h3>
           <div className="space-y-4">
              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                <span className="text-slate-600">Total Large Requests (&gt;15k tokens)</span>
+                <span className="text-slate-600">Total Large Requests (&gt;{Math.round(config.large_request_threshold/1000)}k tokens)</span>
                 <span className="font-bold text-slate-800">{large_requests.count}</span>
              </div>
              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
@@ -168,8 +177,8 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
                 <span className="font-bold text-slate-800">{formatNumber(stats.avg_tokens_per_request)}</span>
              </div>
              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                <span className="text-slate-600">Avg Generation Time</span>
-                <span className="font-bold text-slate-800">{stats.avg_generation_time.toFixed(0)}ms</span>
+                <span className="text-slate-600">Efficiency</span>
+                <span className="font-bold text-slate-800">{stats.calls_per_message.toFixed(2)} calls/msg</span>
              </div>
           </div>
         </div>
