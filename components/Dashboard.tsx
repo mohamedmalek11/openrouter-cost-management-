@@ -138,7 +138,7 @@ const Dashboard: React.FC<DashboardProps> = ({ data, onReset }) => {
           </h3>
           <div className="space-y-4">
              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                <span className="text-slate-600">Total Large Requests (>15k tokens)</span>
+                <span className="text-slate-600">Total Large Requests (&gt;15k tokens)</span>
                 <span className="font-bold text-slate-800">{large_requests.count}</span>
              </div>
              <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
